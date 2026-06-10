@@ -2,6 +2,7 @@
 Es una aplicación para gestionar solicitudes, problemas o preguntas de clientes o empleados.
 
 # Estructura del proyecto
+```text
 Help_Desk/
 ├── app/                   # Módulo principal de la aplicación
 │   ├── services/          # Lógica de negocio y servicios externos
@@ -28,3 +29,4 @@ Help_Desk/
 ├── README.md              # Documentación del proyecto
 ├── requirements.txt       # Dependencias del proyecto
 └── run.py                 # Script de entrada para ejecutar la aplicación
+```
