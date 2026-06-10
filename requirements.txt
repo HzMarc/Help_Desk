@@ -1,0 +1,4 @@
+Flask
+Flask-Bcrypt
+mysql-connector-python
+python-dotenv

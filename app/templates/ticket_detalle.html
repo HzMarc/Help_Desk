@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <!-- Columna Izquierda: Información del Ticket -->
+    <div class="col-md-4 mb-4">
+        <div class="card p-3 shadow-sm h-100 border-top border-4 border-cyan">
+            <h4 class="text-deep-blue mb-3">Ticket #{{ ticket.id }}</h4>
+            <p class="mb-1"><strong>Estado:</strong> 
+                {% if ticket.estado == 'abierto' %} <span class="badge bg-primary">Abierto</span>
+                {% elif ticket.estado == 'en_progreso' %} <span class="badge bg-warning text-dark">En progreso</span>
+                {% elif ticket.estado == 'resuelto' %} <span class="badge bg-success">Resuelto</span>
+                {% elif ticket.estado == 'cerrado' %} <span class="badge bg-secondary">Cerrado</span>
+                {% elif ticket.estado == 'cancelado' %} <span class="badge bg-danger">Cancelado</span>
+                {% endif %}
+            </p>
+            <p class="mb-3"><strong>Prioridad:</strong> 
+                {% if ticket.prioridad == 'baja' %} <span class="badge bg-secondary">Baja</span>
+                {% elif ticket.prioridad == 'media' %} <span class="badge bg-info text-dark">Media</span>
+                {% elif ticket.prioridad == 'alta' %} <span class="badge bg-warning text-dark">Alta</span>
+                {% elif ticket.prioridad == 'urgente' %} <span class="badge bg-danger">Urgente</span>
+                {% else %} <span class="badge bg-light text-dark border">Sin asignar</span>
+                {% endif %}
+            </p>
+            
+            <p><strong><i class="far fa-calendar-alt"></i> Fecha de Creación:</strong><br> 
+               <small>{{ ticket.created_at.strftime('%d/%m/%Y %H:%M') if ticket.created_at else '' }}</small>
+            </p>
+
+            <div class="mt-auto">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary w-100 mb-2"><i class="fas fa-arrow-left"></i> Volver</a>
+                
+                {% if puede_cancelar %}
+                <form method="POST" action="{{ url_for('main.cancelar', id=ticket.id) }}">
+                    <button type="submit" id="btn-cancelar-ticket" class="btn btn-outline-danger w-100 fw-bold"><i class="fas fa-ban"></i> Cancelar Ticket</button>
+                </form>
+                {% endif %}
+
+                {% if session.rol in ['admin', 'agente'] %}
+                <hr>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-info btn-cambiar-estado" data-id="{{ ticket.id }}"><i class="fas fa-exchange-alt"></i> Cambiar Estado</button>
+                    <button class="btn btn-outline-deep-blue btn-historial" data-id="{{ ticket.id }}"><i class="fas fa-history"></i> Ver Historial</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Hilo de conversación -->
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h3 class="text-deep-blue border-bottom pb-2 mb-4">{{ ticket.titulo }}</h3>
+                <div class="msg-bubble bg-light border p-3 mb-4">
+                    <strong><i class="fas fa-user-circle"></i> Descripción Original:</strong><br>
+                    <p class="mt-2 mb-0" style="white-space: pre-wrap;">{{ ticket.descripcion }}</p>
+                </div>
+                
+                <h5 class="text-secondary mb-3"><i class="far fa-comments"></i> Hilo de Respuestas</h5>
+                
+                <div class="respuestas-container mb-4">
+                    {% for r in respuestas %}
+                        <div class="msg-bubble {% if r.rol == 'cliente' %}msg-cliente{% else %}msg-agente{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ r.nombre }} <span class="badge {% if r.rol == 'cliente' %}bg-secondary{% else %}bg-info text-dark{% endif %}">{{ r.rol }}</span></strong>
+                                <small class="text-muted">{{ r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else '' }}</small>
+                            </div>
+                            <p class="mb-0" style="white-space: pre-wrap;">{{ r.mensaje }}</p>
+                        </div>
+                    {% else %}
+                        <p class="text-muted fst-italic">Aún no hay respuestas en este ticket. Sé el primero en escribir.</p>
+                    {% endfor %}
+                </div>
+
+                {% if ticket.estado != 'cancelado' %}
+                <form method="POST" action="{{ url_for('main.responder_ticket', id=ticket.id) }}">
+                    <div class="form-group mb-3">
+                        <textarea name="mensaje" class="form-control" rows="3" required placeholder="Escribe tu respuesta aquí..."></textarea>
+                    </div>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-cyan fw-bold"><i class="fas fa-paper-plane"></i> Enviar Respuesta</button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-danger text-center">
+                    Este ticket fue cancelado y no admite nuevas respuestas.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

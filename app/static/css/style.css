@@ -1,0 +1,105 @@
+/* app/static/css/style.css */
+
+/* Paleta de Colores
+Deep Blue: #1C3166
+Cyan: #00B5C9
+Light Gray: #F2F2F2
+White: #FFFFFF
+Soft Green: #4CAF50
+*/
+
+:root {
+    --deep-blue: #1C3166;
+    --cyan: #00B5C9;
+    --light-gray: #F2F2F2;
+    --soft-green: #4CAF50;
+    --white: #FFFFFF;
+}
+
+body.bg-light-gray {
+    background-color: var(--light-gray);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.bg-deep-blue {
+    background-color: var(--deep-blue) !important;
+}
+
+.text-cyan {
+    color: var(--cyan) !important;
+}
+
+.text-deep-blue {
+    color: var(--deep-blue) !important;
+}
+
+/* Custom Buttons */
+.btn-cyan {
+    background-color: var(--cyan);
+    color: var(--white);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-cyan:hover {
+    background-color: #0093a3;
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-outline-deep-blue {
+    color: var(--deep-blue);
+    border-color: var(--deep-blue);
+}
+
+.btn-outline-deep-blue:hover {
+    background-color: var(--deep-blue);
+    color: var(--white);
+}
+
+/* Cards */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ticket-card {
+    cursor: pointer;
+}
+
+.ticket-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(28, 49, 102, 0.15); /* Sombra usando Deep Blue */
+    background-color: #fafafa;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Message bubbles */
+.msg-bubble {
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.msg-cliente {
+    background-color: #e9ecef;
+    border-left: 5px solid #6c757d;
+}
+
+.msg-agente {
+    background-color: #e0f7fa;
+    border-left: 5px solid var(--cyan);
+}

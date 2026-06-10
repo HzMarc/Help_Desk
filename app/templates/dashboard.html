@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-deep-blue m-0">Panel de Tickets</h2>
+    {% if session.rol == 'cliente' %}
+        <a href="{{ url_for('main.nuevo_ticket') }}" class="btn btn-cyan fw-bold"><i class="fas fa-plus-circle me-1"></i> Crear Nuevo Ticket</a>
+    {% endif %}
+</div>
+
+<!-- Vista Global (Cliente y Admin): Cards -->
+<div class="row">
+    {% for t in tickets %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 ticket-card cursor-pointer" onclick="abrirModalTicket({{ t.id }})">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title text-deep-blue m-0">#{{ t.id }} - {{ t.titulo }}</h5>
+                </div>
+                <p class="card-text text-muted small mb-3">
+                    <i class="far fa-calendar-alt"></i> Creado: {{ t.created_at.strftime('%d/%m/%Y %H:%M') if t.created_at else '' }}
+                </p>
+                <div class="mb-3">
+                    <!-- Badge Estado -->
+                    {% if t.estado == 'abierto' %} <span class="badge bg-primary">Abierto</span>
+                    {% elif t.estado == 'en_progreso' %} <span class="badge bg-warning text-dark">En progreso</span>
+                    {% elif t.estado == 'resuelto' %} <span class="badge bg-success">Resuelto</span>
+                    {% elif t.estado == 'cerrado' %} <span class="badge bg-secondary">Cerrado</span>
+                    {% elif t.estado == 'cancelado' %} <span class="badge bg-danger">Cancelado</span>
+                    {% endif %}
+                    
+                    <!-- Badge Prioridad (visible más para agentes, pero útil en resumen) -->
+                    {% if t.prioridad == 'baja' %} <span class="badge bg-secondary">Baja</span>
+                    {% elif t.prioridad == 'media' %} <span class="badge bg-info text-dark">Media</span>
+                    {% elif t.prioridad == 'alta' %} <span class="badge bg-warning text-dark">Alta</span>
+                    {% elif t.prioridad == 'urgente' %} <span class="badge bg-danger">Urgente</span>
+                    {% else %} <span class="badge bg-light text-dark border">Prioridad sin asignar</span>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-auto text-end">
+                    <span class="text-cyan small fw-bold">Ver detalles <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <h4 class="text-muted">No hay tickets activos en este momento.</h4>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal Maestro de Ticket -->
+<div class="modal fade" id="modalTicket" tabindex="-1" aria-labelledby="modalTicketLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-deep-blue text-white">
+        <h5 class="modal-title" id="modalTicketLabel">Cargando...</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body bg-light-gray" id="modalTicketBody">
+        <!-- Content injected by JS -->
+        <div class="text-center py-5">
+            <div class="spinner-border text-cyan" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer d-flex justify-content-between" id="modalTicketFooter">
+          <!-- Footer injected by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Variables para el JS externo
+    const ROL_USUARIO = "{{ session.rol }}";
+</script>
+
+{% endblock %}
