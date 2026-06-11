@@ -1,10 +1,12 @@
-// app/static/js/main.js
-
 let currentTicketId = null;
 
 async function abrirModalTicket(id) {
     currentTicketId = id;
-    const modal = new bootstrap.Modal(document.getElementById('modalTicket'));
+    const modalEl = document.getElementById('modalTicket');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
     modal.show();
 
     // Resetear modal mientras carga
@@ -27,10 +29,8 @@ async function abrirModalTicket(id) {
         const t = data.ticket;
         const r = data.respuestas;
 
-        // Renderizar Header
         document.getElementById('modalTicketLabel').innerHTML = `<strong>#${t.id}</strong> - ${t.titulo}`;
 
-        // Renderizar Body (Info + Mensajes)
         let html = `
             <div class="bg-white p-3 rounded shadow-sm mb-4 border-top border-4 border-cyan">
                 <div class="d-flex justify-content-between mb-2">
@@ -60,8 +60,7 @@ async function abrirModalTicket(id) {
             });
         }
         
-        // Área para enviar nueva respuesta si no está cancelado
-        if (t.estado !== 'cancelado') {
+        if (t.estado !== 'cancelado' && t.estado !== 'resuelto' && t.estado !== 'cerrado') {
             html += `
                 </div>
                 <div class="bg-white p-3 rounded shadow-sm">
@@ -74,30 +73,21 @@ async function abrirModalTicket(id) {
                 </div>
             `;
         } else {
-            html += `</div><div class="alert alert-danger text-center">Ticket cancelado. No admite respuestas.</div>`;
+            let razon = t.estado === 'cancelado' ? 'cancelado' : 'resuelto/cerrado';
+            html += `</div><div class="alert alert-danger text-center">Ticket ${razon}. No admite nuevas respuestas.</div>`;
         }
 
         document.getElementById('modalTicketBody').innerHTML = html;
 
-        // Renderizar Footer (Controles extra)
         let footerHtml = ``;
         if (data.puede_cancelar && typeof ROL_USUARIO !== 'undefined' && ROL_USUARIO === 'cliente') {
             footerHtml += `<button class="btn btn-outline-danger" onclick="cancelarTicketModal(${t.id})"><i class="fas fa-ban"></i> Cancelar Ticket</button>`;
         } else {
-            footerHtml += `<div></div>`; // Spacer
+            footerHtml += `<div></div>`;
         }
-
-        if (typeof ROL_USUARIO !== 'undefined' && ['admin', 'agente'].includes(ROL_USUARIO)) {
-            footerHtml += `
-                <div>
-                    <button class="btn btn-outline-info" onclick="cambiarEstadoModal(${t.id})"><i class="fas fa-exchange-alt"></i> Estado</button>
-                    <button class="btn btn-outline-deep-blue ms-2" onclick="verHistorialModal(${t.id})"><i class="fas fa-history"></i> Historial</button>
-                </div>
-            `;
-        }
+        
         document.getElementById('modalTicketFooter').innerHTML = footerHtml;
 
-        // Event listener para el formulario de responder (dentro del modal dinámico)
         const formResponder = document.getElementById('form-responder');
         if (formResponder) {
             formResponder.addEventListener('submit', async (e) => {
@@ -114,7 +104,6 @@ async function abrirModalTicket(id) {
                 });
 
                 if (resPost.ok) {
-                    // Recargar contenido del modal simulando tiempo real
                     abrirModalTicket(id);
                 } else {
                     Swal.fire('Error', 'No se pudo enviar la respuesta', 'error');
@@ -139,11 +128,9 @@ function cancelarTicketModal(id) {
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, cancelar',
-      cancelButtonText: 'No'
-    }).then(async (result) => {
+      confirmButtonText: 'Sí, cancelar'
+    }).then((result) => {
       if (result.isConfirmed) {
-        // Hacemos form manual post a /ticket/id/cancelar
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/ticket/${id}/cancelar`;
@@ -153,42 +140,151 @@ function cancelarTicketModal(id) {
     });
 }
 
-async function cambiarEstadoModal(id) {
-    const { value: nuevoEstado } = await Swal.fire({
-      title: 'Cambiar estado',
-      input: 'select',
-      inputOptions: {
-        'abierto': 'Abierto',
-        'en_progreso': 'En progreso',
-        'resuelto': 'Resuelto',
-        'cerrado': 'Cerrado'
-      },
-      inputPlaceholder: 'Selecciona un estado',
+// Nuevo: Modal Inicial Exacto de Fase 2 (Paso 8.2)
+async function gestionarTicketInicialModal(id) {
+    // Necesitamos cargar agentes y datos actuales para mostrarlos
+    const res = await fetch(`/api/ticket/${id}/completo`);
+    const data = await res.json();
+    const t = data.ticket;
+    const agentes = data.agentes || [];
+
+    let opcionesAgentes = '<option value="">Yo mismo / Seleccionar</option>';
+    agentes.forEach(ag => {
+        opcionesAgentes += `<option value="${ag.id}">${ag.nombre}</option>`;
+    });
+
+    const htmlForm = `
+        <div class="text-start">
+            <h6 class="fw-bold mb-3 border-bottom pb-2">📌 ASIGNAR PRIORIDAD (obligatorio)</h6>
+            <div class="mb-4 d-flex justify-content-between" id="grupo-prioridad">
+                <label><input type="radio" name="swal-prioridad" value="baja"> Baja</label>
+                <label><input type="radio" name="swal-prioridad" value="media"> Media</label>
+                <label><input type="radio" name="swal-prioridad" value="alta"> Alta</label>
+                <label><input type="radio" name="swal-prioridad" value="urgente"> Urgente</label>
+            </div>
+            
+            <h6 class="fw-bold mb-3 border-bottom pb-2">🔄 CAMBIAR ESTADO (obligatorio)</h6>
+            <div class="mb-4 d-flex justify-content-between" id="grupo-estado">
+                <label><input type="radio" name="swal-estado" value="abierto"> Abierto</label>
+                <label><input type="radio" name="swal-estado" value="en_progreso"> En progreso</label>
+                <label><input type="radio" name="swal-estado" value="resuelto"> Resuelto</label>
+                <label><input type="radio" name="swal-estado" value="cerrado"> Cerrado</label>
+            </div>
+
+            <h6 class="fw-bold mb-2">👤 ASIGNAR A (opcional)</h6>
+            <select id="swal-agente" class="form-select">
+                ${opcionesAgentes}
+            </select>
+        </div>
+    `;
+
+    const result = await Swal.fire({
+      title: 'Gestionar Ticket',
+      html: htmlForm,
+      width: '600px',
       showCancelButton: true,
-      confirmButtonText: 'Actualizar',
-      confirmButtonColor: '#00B5C9'
+      confirmButtonText: 'Guardar Cambios',
+      confirmButtonColor: '#00B5C9',
+      didOpen: () => {
+          if(t.prioridad) document.querySelector(`input[name="swal-prioridad"][value="${t.prioridad}"]`).checked = true;
+          if(t.estado) document.querySelector(`input[name="swal-estado"][value="${t.estado}"]`).checked = true;
+      },
+      preConfirm: () => {
+        const prioEl = document.querySelector('input[name="swal-prioridad"]:checked');
+        const estEl = document.querySelector('input[name="swal-estado"]:checked');
+        if (!prioEl || !estEl) {
+            Swal.showValidationMessage('Debes seleccionar prioridad y estado');
+            return false;
+        }
+        return { 
+            prioridad: prioEl.value, 
+            estado: estEl.value, 
+            agente_id: document.getElementById('swal-agente').value || null 
+        };
+      }
     });
     
-    if (nuevoEstado) {
+    if (result.isConfirmed) {
+        const response = await fetch(`/api/ticket/${id}/gestionar`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(result.value)
+        });
+        const dataResp = await response.json();
+        
+        if (dataResp.success) {
+            Swal.fire({icon: 'success', title: 'Ticket actualizado', text: 'Prioridad y estado asignados correctamente', timer: 2000, showConfirmButton: false}).then(() => location.reload());
+        }
+    }
+}
+
+// Botones de acción individuales (Paso 8.4)
+async function cambiarEstadoModal(id) {
+    const htmlForm = `
+        <div class="text-start">
+            <div class="d-flex justify-content-between mb-4">
+                <label><input type="radio" name="swal-nuevo-estado" value="abierto"> Abierto</label>
+                <label><input type="radio" name="swal-nuevo-estado" value="en_progreso"> En progreso</label>
+                <label><input type="radio" name="swal-nuevo-estado" value="resuelto"> Resuelto</label>
+                <label><input type="radio" name="swal-nuevo-estado" value="cerrado"> Cerrado</label>
+            </div>
+        </div>
+    `;
+
+    const { value: result } = await Swal.fire({
+      title: 'Cambiar estado',
+      html: htmlForm,
+      showCancelButton: true,
+      confirmButtonText: 'Cambiar',
+      confirmButtonColor: '#00B5C9',
+      preConfirm: () => {
+          const el = document.querySelector('input[name="swal-nuevo-estado"]:checked');
+          if(!el) { Swal.showValidationMessage('Selecciona un estado'); return false; }
+          return el.value;
+      }
+    });
+    
+    if (result) {
         const response = await fetch(`/api/ticket/${id}/cambiar_estado`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ nuevo_estado: nuevoEstado })
+            body: JSON.stringify({ nuevo_estado: result })
         });
         const data = await response.json();
-        
         if (data.success) {
-            Swal.fire('¡Actualizado!', 'El estado ha cambiado.', 'success').then(()=> {
-                // Actualizamos Modal si sigue abierto, sino reload
-                if (currentTicketId === id) {
-                    abrirModalTicket(id);
-                } else {
-                    location.reload();
-                }
-            });
-        } else {
-            Swal.fire('Error', 'Hubo un problema.', 'error');
+            Swal.fire('¡Actualizado!', 'El estado ha cambiado.', 'success').then(()=> location.reload());
         }
+    }
+}
+
+async function reasignarModal(id) {
+    const res = await fetch(`/api/ticket/${id}/completo`);
+    const data = await res.json();
+    const agentes = data.agentes || [];
+    
+    let opcionesAgentes = '<option value="">Sin Asignar</option>';
+    agentes.forEach(ag => {
+        opcionesAgentes += `<option value="${ag.id}">${ag.nombre}</option>`;
+    });
+
+    const { value: agenteId } = await Swal.fire({
+      title: 'Reasignar Agente',
+      html: `<select id="swal-reasignar" class="form-select">${opcionesAgentes}</select>`,
+      showCancelButton: true,
+      confirmButtonText: 'Reasignar',
+      preConfirm: () => document.getElementById('swal-reasignar').value
+    });
+
+    if (agenteId !== undefined) {
+        // Aprovechamos el endpoint /gestionar, pero mantenemos prioridad y estado actual
+        const t = data.ticket;
+        const response = await fetch(`/api/ticket/${id}/gestionar`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ prioridad: t.prioridad, estado: t.estado, agente_id: agenteId || null })
+        });
+        const resp = await response.json();
+        if(resp.success) Swal.fire('Reasignado', 'Agente modificado correctamente', 'success').then(() => location.reload());
     }
 }
 

@@ -28,6 +28,31 @@ def crear_usuario_cliente(connection, nombre, email, password_hash):
         connection.rollback()
         return None
 
+def crear_usuario_admin_agente(connection, nombre, email, password_hash, rol):
+    try:
+        cursor = connection.cursor()
+        query = "INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (%s, %s, %s, %s)"
+        cursor.execute(query, (nombre, email, password_hash, rol))
+        connection.commit()
+        nuevo_id = cursor.lastrowid
+        cursor.close()
+        return nuevo_id
+    except Error as e:
+        print(f"Error en crear_usuario_admin_agente: {e}")
+        connection.rollback()
+        return None
+
+def obtener_todos_agentes(connection):
+    try:
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT id, nombre, email, rol, fecha_registro FROM usuarios WHERE rol IN ('agente', 'admin') ORDER BY fecha_registro DESC"
+        cursor.execute(query)
+        agentes = cursor.fetchall()
+        cursor.close()
+        return agentes
+    except Error as e:
+        return []
+
 def obtener_agentes(connection):
     try:
         cursor = connection.cursor(dictionary=True)
@@ -39,6 +64,18 @@ def obtener_agentes(connection):
         return []
 
 # ==================== TICKETS ====================
+
+def obtener_tickets_sin_asignar(connection):
+    try:
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT * FROM tickets WHERE agente_asignado_id IS NULL AND deleted_at IS NULL ORDER BY created_at DESC"
+        cursor.execute(query)
+        tickets = cursor.fetchall()
+        cursor.close()
+        return tickets
+    except Error as e:
+        print(f"Error en obtener_tickets_sin_asignar: {e}")
+        return []
 
 def crear_ticket(connection, titulo, descripcion, usuario_id):
     try:
@@ -102,12 +139,8 @@ def cancelar_ticket(connection, ticket_id):
 def actualizar_ticket_prioridad_estado(connection, ticket_id, prioridad, estado, agente_id=None):
     try:
         cursor = connection.cursor()
-        if agente_id:
-            query = "UPDATE tickets SET prioridad = %s, estado = %s, agente_asignado_id = %s WHERE id = %s"
-            cursor.execute(query, (prioridad, estado, agente_id, ticket_id))
-        else:
-            query = "UPDATE tickets SET prioridad = %s, estado = %s WHERE id = %s"
-            cursor.execute(query, (prioridad, estado, ticket_id))
+        query = "UPDATE tickets SET prioridad = %s, estado = %s, agente_asignado_id = %s WHERE id = %s"
+        cursor.execute(query, (prioridad, estado, agente_id, ticket_id))
         connection.commit()
         cursor.close()
         return True
@@ -215,3 +248,30 @@ def obtener_historial_ticket(connection, ticket_id):
     except Error as e:
         print(f"Error en obtener_historial: {e}")
         return []
+
+# ==================== REPORTES ====================
+
+def obtener_reportes_basicos(connection):
+    try:
+        cursor = connection.cursor(dictionary=True)
+        query = """
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = 'abierto' THEN 1 ELSE 0 END) as abiertos,
+                SUM(CASE WHEN estado = 'resuelto' THEN 1 ELSE 0 END) as resueltos,
+                SUM(CASE WHEN estado = 'en_progreso' THEN 1 ELSE 0 END) as en_progreso,
+                SUM(CASE WHEN estado = 'cerrado' THEN 1 ELSE 0 END) as cerrados
+            FROM tickets WHERE deleted_at IS NULL
+        """
+        cursor.execute(query)
+        res = cursor.fetchone()
+        cursor.close()
+        
+        # MySQL SUM returns Decimal, convert to int to be safe
+        if res:
+            for k in res:
+                res[k] = int(res[k]) if res[k] is not None else 0
+        return res
+    except Error as e:
+        print(f"Error en obtener_reportes_basicos: {e}")
+        return {'total':0, 'abiertos':0, 'resueltos':0, 'en_progreso':0, 'cerrados':0}

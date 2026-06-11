@@ -3,7 +3,8 @@ from app.models import (
     obtener_usuario_por_email, crear_usuario_cliente, obtener_tickets, 
     crear_ticket, obtener_ticket_por_id, cancelar_ticket, actualizar_ticket_prioridad_estado,
     cambiar_estado_ticket, reabrir_ticket, agregar_respuesta, obtener_respuestas_ticket,
-    registrar_log_estado, obtener_historial_ticket, obtener_agentes
+    registrar_log_estado, obtener_historial_ticket, obtener_agentes,
+    obtener_tickets_sin_asignar, crear_usuario_admin_agente, obtener_todos_agentes, obtener_reportes_basicos
 )
 from app.utils import login_requerido, rol_requerido
 from app import bcrypt, get_db_connection
@@ -226,16 +227,20 @@ def responder_ticket(id):
             return jsonify({"error": "No tienes permiso"}), 403
         return redirect(url_for('main.dashboard'))
         
-    exito = agregar_respuesta(conn, id, session.get('user_id'), mensaje)
-    
-    if exito and session.get('rol') == 'cliente' and ticket['estado'] in ['cerrado', 'resuelto']:
-        reabrir_ticket(conn, id)
-        registrar_log_estado(conn, id, ticket['estado'], 'abierto', session.get('user_id'))
+    if ticket['estado'] in ['resuelto', 'cerrado', 'cancelado']:
+        conn.close()
+        if request.is_json:
+            return jsonify({"error": "El ticket está cerrado/resuelto y no admite respuestas"}), 403
+        flash("El ticket está cerrado o resuelto y no admite más respuestas.", "danger")
+        return redirect(url_for('main.dashboard'))
         
+    exito = agregar_respuesta(conn, id, session.get('user_id'), mensaje)
     conn.close()
     
     if request.is_json:
-        return jsonify({"success": True})
+        if exito:
+            return jsonify({"success": True})
+        return jsonify({"error": "Error al guardar la respuesta"}), 500
     return redirect(url_for('main.ticket_detalle', id=id))
 
 # ======================= GESTIÓN ESTADOS (Paso 8 API) =======================
@@ -315,6 +320,10 @@ def ticket_completo(id):
         if datetime.now() - tiempo_creacion < timedelta(minutes=30):
             puede_cancelar = True
             
+    agentes = []
+    if session.get('rol') in ['admin', 'agente']:
+        agentes = obtener_agentes(conn)
+        
     conn.close()
     
     # Convertir datetimes a strings para JSON
@@ -330,5 +339,61 @@ def ticket_completo(id):
     return jsonify({
         "ticket": ticket,
         "respuestas": respuestas,
-        "puede_cancelar": puede_cancelar
+        "puede_cancelar": puede_cancelar,
+        "agentes": agentes
     })
+
+# ======================= RUTAS ADMIN Y AGENTES =======================
+
+@main.route('/tickets/sin_asignar')
+@login_requerido
+@rol_requerido('agente', 'admin')
+def tickets_sin_asignar():
+    conn = get_db_connection(current_app)
+    if not conn:
+        flash("Error de BD.", "danger")
+        return render_template('dashboard.html', tickets=[])
+    tickets = obtener_tickets_sin_asignar(conn)
+    conn.close()
+    return render_template('dashboard.html', tickets=tickets, subtitulo="Tickets Sin Asignar")
+
+@main.route('/admin/agentes', methods=['GET', 'POST'])
+@login_requerido
+@rol_requerido('admin')
+def admin_agentes():
+    conn = get_db_connection(current_app)
+    if not conn:
+        flash("Error de BD.", "danger")
+        return redirect(url_for('main.dashboard'))
+        
+    if request.method == 'POST':
+        nombre = request.form.get('nombre')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        rol = request.form.get('rol') # agente o admin
+        
+        password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+        nuevo_id = crear_usuario_admin_agente(conn, nombre, email, password_hash, rol)
+        if nuevo_id:
+            flash(f"Usuario '{nombre}' creado exitosamente como {rol}.", "success")
+        else:
+            flash("Error al crear. Posiblemente el correo ya existe.", "danger")
+            
+        return redirect(url_for('main.admin_agentes'))
+        
+    agentes = obtener_todos_agentes(conn)
+    conn.close()
+    return render_template('admin/agentes.html', agentes=agentes)
+
+@main.route('/admin/reportes')
+@login_requerido
+@rol_requerido('admin')
+def admin_reportes():
+    conn = get_db_connection(current_app)
+    if not conn:
+        flash("Error de BD.", "danger")
+        return redirect(url_for('main.dashboard'))
+    reportes = obtener_reportes_basicos(conn)
+    conn.close()
+    return render_template('admin/reportes.html', reportes=reportes)
