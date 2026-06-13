@@ -14,6 +14,17 @@ def obtener_usuario_por_email(connection, email):
         print(f"Error en obtener_usuario_por_email: {e}")
         return None
 
+def obtener_usuario_por_id(connection, usuario_id):
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM usuarios WHERE id = %s", (usuario_id,))
+        usuario = cursor.fetchone()
+        cursor.close()
+        return usuario
+    except Error as e:
+        print(f"Error en obtener_usuario_por_id: {e}")
+        return None
+
 def crear_usuario_cliente(connection, nombre, email, password_hash):
     try:
         cursor = connection.cursor()
@@ -63,7 +74,72 @@ def obtener_agentes(connection):
     except Error as e:
         return []
 
+def actualizar_password_usuario(connection, usuario_id, new_password_hash):
+    try:
+        cursor = connection.cursor()
+        query = "UPDATE usuarios SET password_hash = %s WHERE id = %s"
+        cursor.execute(query, (new_password_hash, usuario_id))
+        connection.commit()
+        cursor.close()
+        return True
+    except Error as e:
+        print(f"Error en actualizar_password_usuario: {e}")
+        connection.rollback()
+        return False
+
 # ==================== TICKETS ====================
+
+def soft_delete_ticket(connection, ticket_id, usuario_id):
+    try:
+        cursor = connection.cursor()
+        query = "UPDATE tickets SET deleted_at = NOW(), deleted_by = %s WHERE id = %s"
+        cursor.execute(query, (usuario_id, ticket_id))
+        connection.commit()
+        cursor.close()
+        return True
+    except Error as e:
+        print(f"Error en soft_delete_ticket: {e}")
+        connection.rollback()
+        return False
+
+def restaurar_ticket(connection, ticket_id):
+    try:
+        cursor = connection.cursor()
+        query = "UPDATE tickets SET deleted_at = NULL, deleted_by = NULL WHERE id = %s"
+        cursor.execute(query, (ticket_id,))
+        connection.commit()
+        cursor.close()
+        return True
+    except Error as e:
+        print(f"Error en restaurar_ticket: {e}")
+        connection.rollback()
+        return False
+
+def obtener_tickets_eliminados(connection):
+    try:
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT * FROM tickets WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
+        cursor.execute(query)
+        tickets = cursor.fetchall()
+        cursor.close()
+        return tickets
+    except Error as e:
+        print(f"Error en obtener_tickets_eliminados: {e}")
+        return []
+
+def borrar_ticket_permanente(connection, ticket_id):
+    try:
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM respuestas WHERE ticket_id = %s", (ticket_id,))
+        cursor.execute("DELETE FROM logs_estados WHERE ticket_id = %s", (ticket_id,))
+        cursor.execute("DELETE FROM tickets WHERE id = %s", (ticket_id,))
+        connection.commit()
+        cursor.close()
+        return True
+    except Error as e:
+        print(f"Error en borrar_ticket_permanente: {e}")
+        connection.rollback()
+        return False
 
 def obtener_tickets_sin_asignar(connection):
     try:
@@ -254,7 +330,8 @@ def obtener_historial_ticket(connection, ticket_id):
 def obtener_reportes_basicos(connection):
     try:
         cursor = connection.cursor(dictionary=True)
-        query = """
+        # 1. Estados
+        query_estados = """
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN estado = 'abierto' THEN 1 ELSE 0 END) as abiertos,
@@ -263,15 +340,53 @@ def obtener_reportes_basicos(connection):
                 SUM(CASE WHEN estado = 'cerrado' THEN 1 ELSE 0 END) as cerrados
             FROM tickets WHERE deleted_at IS NULL
         """
-        cursor.execute(query)
+        cursor.execute(query_estados)
         res = cursor.fetchone()
-        cursor.close()
         
-        # MySQL SUM returns Decimal, convert to int to be safe
         if res:
             for k in res:
                 res[k] = int(res[k]) if res[k] is not None else 0
+        else:
+            res = {'total':0, 'abiertos':0, 'resueltos':0, 'en_progreso':0, 'cerrados':0}
+            
+        # 2. Prioridades
+        query_prioridades = """
+            SELECT prioridad, COUNT(*) as cantidad 
+            FROM tickets 
+            WHERE deleted_at IS NULL 
+            GROUP BY prioridad
+        """
+        cursor.execute(query_prioridades)
+        prioridades_raw = cursor.fetchall()
+        
+        # Formatear prioridades
+        res['prioridades'] = {
+            'baja': 0, 'media': 0, 'alta': 0, 'urgente': 0, 'sin_asignar': 0
+        }
+        for p in prioridades_raw:
+            clave = p['prioridad'] if p['prioridad'] else 'sin_asignar'
+            if clave in res['prioridades']:
+                res['prioridades'][clave] = p['cantidad']
+                
+        # 3. Agentes
+        query_agentes = """
+            SELECT u.nombre as agente, COUNT(t.id) as cantidad
+            FROM tickets t
+            JOIN usuarios u ON t.agente_asignado_id = u.id
+            WHERE t.deleted_at IS NULL
+            GROUP BY u.id
+            ORDER BY cantidad DESC
+            LIMIT 5
+        """
+        cursor.execute(query_agentes)
+        res['agentes'] = cursor.fetchall()
+
+        cursor.close()
         return res
     except Error as e:
         print(f"Error en obtener_reportes_basicos: {e}")
-        return {'total':0, 'abiertos':0, 'resueltos':0, 'en_progreso':0, 'cerrados':0}
+        return {
+            'total':0, 'abiertos':0, 'resueltos':0, 'en_progreso':0, 'cerrados':0,
+            'prioridades': {'baja': 0, 'media': 0, 'alta': 0, 'urgente': 0, 'sin_asignar': 0},
+            'agentes': []
+        }

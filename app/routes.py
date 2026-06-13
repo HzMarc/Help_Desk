@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, jsonify
 from app.models import (
-    obtener_usuario_por_email, crear_usuario_cliente, obtener_tickets, 
+    obtener_usuario_por_email, obtener_usuario_por_id, crear_usuario_cliente, obtener_tickets, 
     crear_ticket, obtener_ticket_por_id, cancelar_ticket, actualizar_ticket_prioridad_estado,
     cambiar_estado_ticket, reabrir_ticket, agregar_respuesta, obtener_respuestas_ticket,
     registrar_log_estado, obtener_historial_ticket, obtener_agentes,
-    obtener_tickets_sin_asignar, crear_usuario_admin_agente, obtener_todos_agentes, obtener_reportes_basicos
+    obtener_tickets_sin_asignar, crear_usuario_admin_agente, obtener_todos_agentes, obtener_reportes_basicos,
+    actualizar_password_usuario, soft_delete_ticket, restaurar_ticket, obtener_tickets_eliminados, borrar_ticket_permanente
 )
 from app.utils import login_requerido, rol_requerido
 from app import bcrypt, get_db_connection
@@ -397,3 +398,147 @@ def admin_reportes():
     reportes = obtener_reportes_basicos(conn)
     conn.close()
     return render_template('admin/reportes.html', reportes=reportes)
+
+# ======================= FASE 4: PERFIL Y BÚSQUEDA =======================
+
+@main.route('/perfil', methods=['GET'])
+@login_requerido
+def perfil():
+    conn = get_db_connection(current_app)
+    if not conn:
+        flash("Error de conexión a la base de datos.", "danger")
+        return redirect(url_for('main.dashboard'))
+    usuario = obtener_usuario_por_id(conn, session['user_id'])
+    conn.close()
+    return render_template('perfil.html', usuario=usuario)
+
+@main.route('/perfil/cambiar_password', methods=['POST'])
+@login_requerido
+def cambiar_password():
+    datos = request.json
+    actual = datos.get('actual')
+    nueva = datos.get('nueva')
+    
+    conn = get_db_connection(current_app)
+    usuario = obtener_usuario_por_id(conn, session['user_id'])
+    
+    if not bcrypt.check_password_hash(usuario['password_hash'], actual):
+        conn.close()
+        return jsonify({"success": False, "mensaje": "La contraseña actual es incorrecta."}), 400
+        
+    nueva_hash = bcrypt.generate_password_hash(nueva).decode('utf-8')
+    exito = actualizar_password_usuario(conn, session['user_id'], nueva_hash)
+    conn.close()
+    
+    if exito:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "mensaje": "Error en el servidor al actualizar la contraseña."}), 500
+
+@main.route('/api/buscar_tickets')
+@login_requerido
+def buscar_tickets():
+    termino = request.args.get('q', '')
+    usuario_rol = session['rol']
+    usuario_id = session['user_id']
+    
+    conn = get_db_connection(current_app)
+    cursor = conn.cursor(dictionary=True)
+    
+    query = """
+        SELECT t.id, t.titulo, t.estado, t.prioridad, u.email as cliente_email 
+        FROM tickets t
+        JOIN usuarios u ON t.usuario_id = u.id
+        WHERE t.deleted_at IS NULL
+        AND (t.titulo LIKE %s OR t.descripcion LIKE %s OR u.email LIKE %s OR CAST(t.id AS CHAR) LIKE %s)
+    """
+    like_term = f"%{termino}%"
+    params = [like_term, like_term, like_term, like_term]
+    
+    if usuario_rol == 'cliente':
+        query += " AND t.usuario_id = %s"
+        params.append(usuario_id)
+        
+    cursor.execute(query, params)
+    tickets = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return jsonify(tickets)
+
+# ======================= FASE 4: PAPELERA (SOFT DELETE) =======================
+
+@main.route('/admin/papelera')
+@rol_requerido('admin')
+def admin_papelera():
+    conn = get_db_connection(current_app)
+    if not conn:
+        return "Error de conexión", 500
+    
+    tickets_eliminados = obtener_tickets_eliminados(conn)
+    conn.close()
+    return render_template('admin/papelera.html', tickets=tickets_eliminados)
+
+# ======================= FASE 4: EMAIL REPORTES =======================
+from app.utils import enviar_email
+from app.services.reporte_service import generar_reporte_html
+
+@main.route('/admin/enviar_reporte', methods=['POST'])
+@rol_requerido('admin')
+def admin_enviar_reporte():
+    conn = get_db_connection(current_app)
+    if not conn:
+        return jsonify({'success': False, 'message': 'Error de conexión a la BD.'})
+    
+    # Obtener el reporte actual
+    reportes = obtener_reportes_basicos(conn)
+    # Obtener el correo del admin que hizo la petición
+    admin = obtener_usuario_por_id(conn, session['user_id'])
+    conn.close()
+    
+    if admin and admin.get('email'):
+        html_cuerpo = generar_reporte_html(reportes)
+        enviado = enviar_email(
+            destinatario=admin['email'],
+            asunto=f"Reporte de Estado HelpDesk - {datetime.now().strftime('%d/%m/%Y')}",
+            cuerpo_html=html_cuerpo
+        )
+        
+        if enviado:
+            return jsonify({'success': True, 'message': 'Reporte enviado con éxito a tu correo.'})
+        else:
+            return jsonify({'success': False, 'message': 'Fallo al enviar el correo. Revisa la configuración SMTP.'})
+    
+    return jsonify({'success': False, 'message': 'No se encontró correo para este usuario.'})
+
+@main.route('/admin/ticket/<int:id>/eliminar_soft', methods=['POST'])
+@login_requerido
+@rol_requerido('admin')
+def eliminar_ticket_soft(id):
+    conn = get_db_connection(current_app)
+    exito = soft_delete_ticket(conn, id, session['user_id'])
+    conn.close()
+    if exito:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "mensaje": "Error al eliminar"}), 500
+
+@main.route('/admin/ticket/<int:id>/restaurar', methods=['POST'])
+@login_requerido
+@rol_requerido('admin')
+def restaurar_ticket_route(id):
+    conn = get_db_connection(current_app)
+    exito = restaurar_ticket(conn, id)
+    conn.close()
+    if exito:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "mensaje": "Error al restaurar"}), 500
+
+@main.route('/admin/ticket/<int:id>/borrar_permanente', methods=['POST'])
+@login_requerido
+@rol_requerido('admin')
+def borrar_permanente_route(id):
+    conn = get_db_connection(current_app)
+    exito = borrar_ticket_permanente(conn, id)
+    conn.close()
+    if exito:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "mensaje": "Error al borrar definitivamente"}), 500

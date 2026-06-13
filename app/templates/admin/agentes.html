@@ -5,44 +5,14 @@
 </div>
 
 <div class="row">
-    <!-- Formulario para crear agentes -->
-    <div class="col-md-4 mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-deep-blue text-white fw-bold">
-                Crear Nuevo Usuario
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label class="form-label">Nombre</label>
-                        <input type="text" name="nombre" class="form-control" required placeholder="Nombre del agente">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Correo</label>
-                        <input type="email" name="email" class="form-control" required placeholder="agente@empresa.com">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Contraseña</label>
-                        <input type="password" name="password" class="form-control" required placeholder="••••••••">
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label">Rol</label>
-                        <select name="rol" class="form-select" required>
-                            <option value="agente">Agente de Soporte</option>
-                            <option value="admin">Administrador</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-cyan w-100 fw-bold"><i class="fas fa-user-plus me-2"></i> Crear Usuario</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <!-- Lista de Agentes -->
-    <div class="col-md-8 mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-light fw-bold text-deep-blue">
-                Personal Actual
+    <div class="col-md-12 mb-4">
+        <div class="card shadow-sm border-0" style="border-top: 4px solid var(--deep-blue) !important;">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold text-deep-blue fs-5">Personal Actual</span>
+                <button class="btn btn-cyan fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevoAgente">
+                    <i class="fas fa-user-plus me-1"></i> Nuevo Agente
+                </button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -64,22 +34,64 @@
                                 <td>{{ agente.email }}</td>
                                 <td>
                                     {% if agente.rol == 'admin' %}
-                                    <span class="badge bg-danger">Admin</span>
+                                    <span class="badge bg-danger"><i class="fas fa-user-shield me-1"></i> Admin</span>
                                     {% else %}
-                                    <span class="badge bg-info text-dark">Agente</span>
+                                    <span class="badge bg-info text-dark"><i class="fas fa-headset me-1"></i> Agente</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ agente.fecha_registro.strftime('%d/%m/%Y') if agente.fecha_registro else '' }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">No hay agentes registrados aún.</td>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fas fa-users-slash fa-3x mb-3 text-light"></i><br>
+                                    No hay agentes registrados aún.
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Crear Agente -->
+<div class="modal fade" id="modalNuevoAgente" tabindex="-1" aria-labelledby="modalNuevoAgenteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-deep-blue text-white">
+                <h5 class="modal-title fw-bold" id="modalNuevoAgenteLabel"><i class="fas fa-user-plus me-2"></i> Crear Nuevo Usuario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Nombre Completo</label>
+                        <input type="text" name="nombre" class="form-control" required placeholder="Ej. Juan Pérez">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Correo Electrónico</label>
+                        <input type="email" name="email" class="form-control" required placeholder="agente@empresa.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Contraseña</label>
+                        <input type="password" name="password" class="form-control" required placeholder="••••••••">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold text-muted">Rol en el Sistema</label>
+                        <select name="rol" class="form-select" required>
+                            <option value="agente">Agente de Soporte</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-cyan fw-bold">Crear Usuario</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

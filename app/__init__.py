@@ -3,6 +3,10 @@ from flask_bcrypt import Bcrypt
 from config import Config
 import mysql.connector
 from mysql.connector import Error
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 bcrypt = Bcrypt()
 

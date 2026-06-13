@@ -10,7 +10,7 @@
 <!-- Filtros (Visible para Agentes/Admins o si se desea, para todos) -->
 <div class="card p-3 mb-4 shadow-sm bg-light">
     <div class="row align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label class="form-label fw-bold mb-1">Estado</label>
             <select id="filtro-estado" class="form-select" onchange="filtrarTickets()">
                 <option value="todos">Todos</option>
@@ -21,7 +21,7 @@
                 <option value="cancelado">Cancelado</option>
             </select>
         </div>
-        <div class="col-md-4 mt-3 mt-md-0">
+        <div class="col-md-3 mt-3 mt-md-0">
             <label class="form-label fw-bold mb-1">Prioridad</label>
             <select id="filtro-prioridad" class="form-select" onchange="filtrarTickets()">
                 <option value="todas">Todas</option>
@@ -32,9 +32,20 @@
                 <option value="sin_asignar">Sin asignar</option>
             </select>
         </div>
-        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-            <button class="btn btn-outline-secondary" onclick="limpiarFiltros()"><i class="fas fa-filter-slash"></i> Limpiar Filtros</button>
+        <div class="col-md-4 mt-3 mt-md-0">
+            <label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Buscar</label>
+            <input type="text" id="buscador" class="form-control" placeholder="ID, Título o Cliente...">
         </div>
+        <div class="col-md-2 text-md-end mt-3 mt-md-0">
+            <button class="btn btn-outline-secondary w-100" onclick="limpiarFiltros()"><i class="fas fa-filter-slash"></i> Limpiar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Resultados de búsqueda (Ocultos por defecto) -->
+<div class="row d-none" id="resultados-busqueda">
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-cyan" role="status"><span class="visually-hidden">Buscando...</span></div>
     </div>
 </div>
 
@@ -100,6 +111,11 @@
                                 <button class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="verHistorialModal({{ t.id }})" title="Historial">
                                     <i class="fas fa-history"></i> Historial
                                 </button>
+                                {% if session.rol == 'admin' %}
+                                <button class="btn btn-sm btn-outline-danger flex-grow-1 mt-2 w-100" onclick="eliminarSoftModal({{ t.id }})" title="Mover a Papelera">
+                                    <i class="fas fa-trash-alt"></i> Eliminar Ticket
+                                </button>
+                                {% endif %}
                             </div>
                         {% endif %}
                     {% else %}

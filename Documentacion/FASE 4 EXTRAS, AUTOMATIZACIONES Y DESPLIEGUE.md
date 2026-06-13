@@ -579,76 +579,7 @@ def buscar_tickets():
 });
 ```
 
-## Paso 21: Despliegue a producción
 
-### 21.1 Preparar archivo `requirements.txt`
-
-```txt
-Flask==2.3.0
-flask-mysql-connector==1.2.0
-bcrypt==4.0.1
-APScheduler==3.10.0
-mysql-connector-python==8.1.0
-python-dotenv==1.0.0
-```
-
-### 21.2 Variables de entorno (`.env`)
-```env
-SECRET_KEY=tu_clave_secreta_muy_larga_aleatoria
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=tu_contraseña
-DB_NAME=ticket_system
-MAIL_USERNAME=tu_correo@gmail.com
-MAIL_PASSWORD=tu_app_password
-```
-
-### 21.3 Opciones de hosting gratis
-# Plataformas de despliegue
-
-| Plataforma       | ¿Gratis?            | ¿MySQL?              | ¿Tareas programadas? | Dificultad |
-|------------------|---------------------|----------------------|----------------------|------------|
-| PythonAnywhere   | ✅                  | ✅ (limitado)        | ❌                   | Baja       |
-| Render           | ✅                  | ✅ (90 días)         | ✅ (cron)            | Media      |
-| Railway          | ✅ ($5 crédito)     | ✅                   | ✅                   | Baja       |
-| Koyeb            | ✅                  | ✅                   | ✅                   | Media      |
-| VPS Propio       | ❌ (pagas)          | ✅                   | ✅                   | Alta       |
-
-**Recomendación para empezar: PythonAnywhere** (más fácil)
-
-### 21.4 Desplegar en PythonAnywhere (pasos)
-
-1. Crear cuenta en [pythonanywhere.com](https://pythonanywhere.com/)
-    
-2. Subir código por Git o Web UI
-    
-3. Crear base de datos MySQL desde el panel
-    
-4. Configurar WSGI: apuntar a tu `app/__init__.py`
-    
-5. Ejecutar script SQL para crear tablas
-    
-6. Configurar variables de entorno
-    
-7. Probar la app
-    
-
-### 21.5 Desplegar en Railway (recomendado para CV)
-
-1. Subir código a GitHub
-    
-2. Crear cuenta en railway.app
-    
-3. "Deploy from GitHub repo"
-    
-4. Añadir MySQL plugin
-    
-5. Configurar variables de entorno
-    
-6. Railway genera una URL pública automáticamente
-    
-
----
 
 ## Paso 22: Documentación final para GitHub
 

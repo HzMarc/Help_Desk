@@ -314,3 +314,116 @@ async function verHistorialModal(id) {
       confirmButtonColor: '#1C3166'
     });
 }
+
+// ================= FASE 4: ELIMINAR SOFT (PAPELERA) =================
+async function eliminarSoftModal(id) {
+    const result = await Swal.fire({
+        title: '¿Enviar a la Papelera?',
+        text: 'Este ticket será ocultado y solo podrá ser visto en la papelera por los administradores.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const res = await fetch(`/admin/ticket/${id}/eliminar_soft`, { method: 'POST' });
+            if (res.ok) {
+                Swal.fire('Eliminado', 'El ticket ha sido enviado a la papelera', 'success')
+                .then(() => location.reload());
+            } else {
+                Swal.fire('Error', 'No se pudo eliminar el ticket', 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Problema de conexión con el servidor', 'error');
+        }
+    }
+}
+
+// ================= LÓGICA DE BÚSQUEDA (FASE 4) =================
+const buscador = document.getElementById('buscador');
+if (buscador) {
+    buscador.addEventListener('input', debounce(async function(e) {
+        const termino = e.target.value;
+        const contTickets = document.getElementById('contenedor-tickets');
+        const contBusqueda = document.getElementById('resultados-busqueda');
+        
+        if (termino.length < 2) {
+            contTickets.classList.remove('d-none');
+            contBusqueda.classList.add('d-none');
+            return;
+        }
+        
+        contTickets.classList.add('d-none');
+        contBusqueda.classList.remove('d-none');
+        contBusqueda.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-cyan" role="status"></div></div>`;
+        
+        try {
+            const response = await fetch(`/api/buscar_tickets?q=${encodeURIComponent(termino)}`);
+            const tickets = await response.json();
+            
+            let html = '<div class="col-12"><h5 class="text-deep-blue mb-3 border-bottom pb-2">Resultados de la búsqueda</h5></div>';
+            if (tickets.length === 0) {
+                html += '<div class="col-12 text-center py-4 text-muted">No se encontraron tickets</div>';
+            } else {
+                tickets.forEach(ticket => {
+                    const bg = ticket.estado === 'abierto' ? 'primary' : ticket.estado === 'resuelto' ? 'success' : ticket.estado === 'cerrado' ? 'secondary' : 'warning text-dark';
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card shadow-sm border-0 border-start border-cyan border-4">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-deep-blue">#${ticket.id} - ${ticket.titulo}</h6>
+                                    <p class="mb-2 small text-muted">
+                                        <i class="fas fa-user"></i> ${ticket.cliente_email} <br>
+                                        <span class="badge bg-${bg} mt-1">${ticket.estado.toUpperCase()}</span>
+                                    </p>
+                                    <button class="btn btn-sm btn-cyan" onclick="abrirModalTicket(${ticket.id})">Ver Detalles</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            contBusqueda.innerHTML = html;
+        } catch(err) {
+            contBusqueda.innerHTML = '<div class="col-12 text-center py-4 text-danger">Error en la búsqueda</div>';
+        }
+    }, 400));
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// ================= FASE 4: EMAIL REPORTES =================
+async function enviarReporteEmail() {
+    const btn = document.getElementById('btn-enviar-reporte');
+    if (!btn) return;
+
+    const contenidoOriginal = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/admin/enviar_reporte', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            Swal.fire('¡Enviado!', data.message, 'success');
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    } catch (e) {
+        Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+    } finally {
+        btn.innerHTML = contenidoOriginal;
+        btn.disabled = false;
+    }
+}
