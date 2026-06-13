@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <h2 class="text-deep-blue mb-4"><i class="fas fa-id-badge me-2"></i> Mi Perfil</h2>
+        
+        <div class="card shadow-sm border-0 mb-4" style="border-top: 4px solid var(--cyan) !important;">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3 border-bottom pb-2">Datos Personales</h5>
+                <form id="formPerfil" onsubmit="event.preventDefault(); Swal.fire('Info', 'Para actualizar tus datos base contacta a soporte', 'info');">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Nombre Completo</label>
+                        <input type="text" class="form-control bg-light" id="nombre" value="{{ usuario.nombre }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Correo Electrónico</label>
+                        <input type="email" class="form-control bg-light" id="email" value="{{ usuario.email }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Rol en el Sistema</label>
+                        <input type="text" class="form-control bg-light text-uppercase fw-bold text-deep-blue" value="{{ usuario.rol }}" readonly>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4" style="border-top: 4px solid var(--deep-blue) !important;">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3 border-bottom pb-2">Cambiar Contraseña</h5>
+                <form id="formPassword">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Contraseña actual</label>
+                        <input type="password" class="form-control" id="pass_actual" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nueva contraseña</label>
+                        <input type="password" class="form-control" id="pass_nueva" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Confirmar nueva contraseña</label>
+                        <input type="password" class="form-control" id="pass_confirm" required>
+                    </div>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-warning fw-bold px-4"><i class="fas fa-key me-2"></i> Actualizar Contraseña</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('formPassword').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const actual = document.getElementById('pass_actual').value;
+    const nueva = document.getElementById('pass_nueva').value;
+    const confirmar = document.getElementById('pass_confirm').value;
+    
+    if (nueva !== confirmar) {
+        Swal.fire('Error', 'Las contraseñas nuevas no coinciden', 'error');
+        return;
+    }
+    
+    const btnSubmit = e.target.querySelector('button');
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = 'Actualizando...';
+    
+    try {
+        const response = await fetch('/perfil/cambiar_password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ actual, nueva })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            Swal.fire('¡Éxito!', 'Tu contraseña ha sido cambiada correctamente', 'success');
+            document.getElementById('formPassword').reset();
+        } else {
+            Swal.fire('Error', data.mensaje || 'No se pudo actualizar', 'error');
+        }
+    } catch (err) {
+        Swal.fire('Error', 'Problema de conexión con el servidor', 'error');
+    } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="fas fa-key me-2"></i> Actualizar Contraseña';
+    }
+});
+</script>
+{% endblock %}

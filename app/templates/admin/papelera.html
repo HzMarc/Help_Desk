@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-danger m-0"><i class="fas fa-trash-alt me-2"></i>Papelera de Reciclaje</h2>
+</div>
+
+<div class="card shadow-sm border-0 border-top border-danger border-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Estado Original</th>
+                        <th>Eliminado El</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td><strong>#{{ ticket.id }}</strong></td>
+                        <td>{{ ticket.titulo[:40] }}{{ '...' if ticket.titulo|length > 40 else '' }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ ticket.estado|upper }}</span>
+                        </td>
+                        <td class="text-muted"><small>{{ ticket.deleted_at.strftime('%d/%m/%Y %H:%M') if ticket.deleted_at else '' }}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-success btn-restaurar fw-bold" data-id="{{ ticket.id }}" title="Restaurar Ticket">
+                                <i class="fas fa-undo"></i> Restaurar
+                            </button>
+                            <button class="btn btn-sm btn-danger btn-borrar-permanente ms-2 fw-bold" data-id="{{ ticket.id }}" title="Borrar Definitivamente">
+                                <i class="fas fa-times-circle"></i> Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-box-open fa-3x mb-3 text-light"></i><br>
+                            La papelera está vacía.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Lógica para Restaurar
+document.querySelectorAll('.btn-restaurar').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const ticketId = this.dataset.id;
+        const result = await Swal.fire({
+            title: '¿Restaurar ticket?',
+            text: 'El ticket volverá a aparecer en la lista principal',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, restaurar',
+            confirmButtonColor: '#28a745'
+        });
+        
+        if (result.isConfirmed) {
+            const response = await fetch(`/admin/ticket/${ticketId}/restaurar`, { method: 'POST' });
+            if (response.ok) {
+                Swal.fire('Restaurado', 'Ticket restaurado correctamente', 'success').then(() => location.reload());
+            } else {
+                Swal.fire('Error', 'No se pudo restaurar el ticket', 'error');
+            }
+        }
+    });
+});
+
+// Lógica para Borrar Permanentemente
+document.querySelectorAll('.btn-borrar-permanente').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const ticketId = this.dataset.id;
+        const result = await Swal.fire({
+            title: '¿Borrar DEFINITIVAMENTE?',
+            text: 'Esta acción no se puede deshacer. Se borrarán todas las respuestas asociadas.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, borrar para siempre',
+            confirmButtonColor: '#dc3545',
+            cancelButtonText: 'Cancelar'
+        });
+        
+        if (result.isConfirmed) {
+            const response = await fetch(`/admin/ticket/${ticketId}/borrar_permanente`, { method: 'POST' });
+            if (response.ok) {
+                Swal.fire('Eliminado', 'El ticket fue borrado definitivamente de la base de datos', 'success').then(() => location.reload());
+            } else {
+                Swal.fire('Error', 'No se pudo borrar el ticket', 'error');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
