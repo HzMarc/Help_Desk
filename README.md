@@ -1,10 +1,10 @@
-# Sistema de Gestión HelpDesk 🚀
+# Sistema de Gestión HelpDesk 
 
 Un sistema web completo e intuitivo para la gestión de solicitudes, problemas y preguntas (tickets) diseñado para optimizar el flujo de soporte técnico y la interacción entre clientes y empleados.
 
 ---
 
-## 🌟 Características Principales
+## Características Principales
 
 * **Autenticación Segura**: Sistema de Login y Registro con contraseñas encriptadas (Bcrypt).
 * **Gestión de Roles**: Accesos granulares diferenciados para Administradores, Agentes y Clientes.
@@ -17,7 +17,7 @@ Un sistema web completo e intuitivo para la gestión de solicitudes, problemas y
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías Utilizadas
 
 * **Backend:** Python 3.11, Flask, APScheduler
 * **Base de Datos:** MySQL (mysql-connector-python)
@@ -30,7 +30,7 @@ Un sistema web completo e intuitivo para la gestión de solicitudes, problemas y
 
 ---
 
-## ⚙️ Instalación y Configuración Local
+## Instalación y Configuración Local
 
 ### 1. Clonar el repositorio
 ```bash
